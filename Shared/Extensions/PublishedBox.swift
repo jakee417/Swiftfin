@@ -32,7 +32,12 @@ class PublishedBox<Wrapped>: ObservableObject {
         self.value = source.wrappedValue
         valueObserver = nil
 
+        // Skip the initial emission: it is the value we just read, so writing
+        // it back is redundant — and if the read dropped anything (e.g. a
+        // stored value that no longer decodes), writing it back would make
+        // that loss permanent just by opening the view.
         valueObserver = $value
+            .dropFirst()
             .sink { value in
                 source.wrappedValue = value
             }

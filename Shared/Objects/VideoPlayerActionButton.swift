@@ -193,3 +193,45 @@ enum VideoPlayerActionButton: String, CaseIterable, Displayable, Equatable, Iden
         .playbackSettings,
     ].filter { supportedCases.contains($0) }
 }
+
+// MARK: - Defaults bridge
+
+extension VideoPlayerActionButton {
+
+    /// Persists the button selection as plain raw values.
+    ///
+    /// The enum conforms to both `Codable` and `RawRepresentable`, so the
+    /// Defaults library would otherwise serialize it through its ambiguous
+    /// JSON `Codable` bridge. `ArrayBridge` silently drops any element that
+    /// fails to decode, so a stored value written in a format the current
+    /// decode doesn't recognize loses that button from the preference with
+    /// no warning. Storing plain raw values is the stable format; the
+    /// legacy JSON format (a quoted raw value, e.g. `"\"nextChapter\""`) is
+    /// still accepted on read so pins made before this change survive.
+    struct DefaultsBridge: Defaults.Bridge {
+
+        typealias Value = VideoPlayerActionButton
+        typealias Serializable = String
+
+        func serialize(_ value: Value?) -> String? {
+            value?.rawValue
+        }
+
+        func deserialize(_ object: String?) -> Value? {
+            guard let object else { return nil }
+
+            if let value = Value(rawValue: object) {
+                return value
+            }
+
+            // Legacy JSON format: the raw value wrapped in quotes.
+            if object.count >= 2, object.hasPrefix("\""), object.hasSuffix("\"") {
+                return Value(rawValue: String(object.dropFirst().dropLast()))
+            }
+
+            return nil
+        }
+    }
+
+    static var bridge: DefaultsBridge { DefaultsBridge() }
+}
